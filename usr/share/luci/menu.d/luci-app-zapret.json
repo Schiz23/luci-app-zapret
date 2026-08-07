@@ -1,0 +1,17 @@
+{
+  "admin/services/zapret": {
+    "title": "Zapret",
+    "order": 62,
+    "action": {
+      "type": "view",
+      "path": "zapret/status"
+    },
+    "depends": {
+      "acl": [ "luci-app-zapret" ],
+      "fs": {
+        "/etc/init.d/zapret2": "executable",
+        "/opt/zapret2/config": "file"
+      }
+    }
+  }
+}
