@@ -1,0 +1,32 @@
+{
+	"luci-app-zapret": {
+		"description": "Grant access to zapret and zapret2 management",
+		"read": {
+			"ubus": {
+				"service": [ "list" ],
+				"luci": [ "getInitList" ]
+			},
+			"file": {
+				"/opt/zapret": [ "list" ],
+				"/opt/zapret2": [ "list" ],
+				"/opt/zapret/config": [ "read" ],
+				"/opt/zapret2/config": [ "read" ],
+				"/opt/zapret/ipset/*": [ "read" ],
+				"/opt/zapret2/ipset/*": [ "read" ],
+				"/opt/zapret/nfq/nfqws": [ "exec" ],
+				"/opt/zapret2/nfq2/nfqws2": [ "exec" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"luci": [ "setInitAction" ]
+			},
+			"file": {
+				"/opt/zapret/config": [ "write" ],
+				"/opt/zapret2/config": [ "write" ],
+				"/opt/zapret/ipset/*": [ "write" ],
+				"/opt/zapret2/ipset/*": [ "write" ]
+			}
+		}
+	}
+}
