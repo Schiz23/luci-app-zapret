@@ -47,5 +47,5 @@ jobs:
       - name: Upload APK Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: luci-app-zapret2-apk
+          name: luci-app-zapret
           path: ${{ github.workspace }}/output/**/*.apk
