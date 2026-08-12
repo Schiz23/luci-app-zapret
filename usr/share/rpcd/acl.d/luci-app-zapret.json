@@ -14,7 +14,10 @@
 				"/opt/zapret/ipset/*": [ "read" ],
 				"/opt/zapret2/ipset/*": [ "read" ],
 				"/opt/zapret/nfq/nfqws": [ "exec" ],
-				"/opt/zapret2/nfq2/nfqws2": [ "exec" ]
+				"/opt/zapret2/nfq2/nfqws2": [ "exec" ],
+				"/tmp/zapret.log": [ "read" ],
+				"/usr/bin/tail": [ "exec" ],
+				"/bin/rm": [ "exec" ]
 			}
 		},
 		"write": {
