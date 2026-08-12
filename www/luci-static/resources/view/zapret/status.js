@@ -111,16 +111,6 @@ function formatVersion(res) {
 	return match ? match[0] : '';
 }
 
-function prettifyCommand(command) {
-	if (!command)
-		return '';
-
-	return command
-		.replace(/\s+--new\b/g, '\n\n--new')
-		.replace(/\s+(--[^\s]+)/g, '\n$1')
-		.trim();
-}
-
 function getServiceInfo(serviceData, serviceName) {
 	var svc = serviceData &&
 		serviceData[serviceName]
@@ -146,8 +136,7 @@ function getServiceInfo(serviceData, serviceName) {
 
 	return {
 		running: running.length > 0,
-		command: command,
-		formattedCommand: prettifyCommand(command)
+		command: command
 	};
 }
 
@@ -202,6 +191,8 @@ var STORAGE_KEY_CUSTOM_PATHS =
 
 var STORAGE_KEY_LAST_PATH =
 	'z2_last_hostlist_path';
+
+var LOG_FILE_PATH = '/tmp/zapret.log';
 
 if (!document.getElementById(
 	'zapret2-panel-styles'
@@ -375,13 +366,15 @@ if (!document.getElementById(
 			resize: vertical;
 		}
 
-		.z2-textarea.z2-compact {
-			min-height: 100px;
-		}
-
 		.z2-textarea[readonly] {
 			cursor: default;
 			opacity: .85;
+		}
+
+		.z2-log-info {
+			margin-bottom: 10px;
+			font-size: 13px;
+			opacity: .8;
 		}
 
 		.z2-toast-container {
@@ -1439,6 +1432,52 @@ return view.extend({
 		});
 	},
 
+	loadLog: function() {
+		var self = this;
+
+		return safeExec('/usr/bin/tail', [ '-n', '4000', LOG_FILE_PATH ]).then(function(res) {
+			if (res && res.code === 0) {
+				self.logArea.value = res.stdout || tr('Log file is empty.', 'Файл лога пуст.');
+				self.logArea.scrollTop = self.logArea.scrollHeight;
+			} else {
+				return fs.trimmed(LOG_FILE_PATH, 10000).then(function(content) {
+					self.logArea.value = content || tr('Log file is empty.', 'Файл лога пуст.');
+					self.logArea.scrollTop = self.logArea.scrollHeight;
+				});
+			}
+		}).catch(function(err) {
+			self.logArea.value = tr(
+				'Failed to read log file (%s): %s',
+				'Не удалось прочитать лог (%s): %s'
+			).format(LOG_FILE_PATH, err.message || err);
+		});
+	},
+
+	deleteLog: function() {
+		var self = this;
+
+		if (!confirm(tr('Are you sure you want to delete /tmp/zapret.log?', 'Вы уверены, что хотите удалить /tmp/zapret.log?'))) {
+			return Promise.resolve();
+		}
+
+		return safeExec('/bin/rm', [ LOG_FILE_PATH ]).then(function(res) {
+			if (res && res.code === 0) {
+				self.logArea.value = tr('Log file deleted.', 'Файл лога удалён.');
+				self.showToast(tr('Log file deleted successfully.', 'Файл лога успешно удалён.'));
+			} else {
+				self.showToast(
+					tr('Failed to delete log file: %s', 'Не удалось удалить файл лога: %s').format(res.stderr || res.stdout || 'unknown error'),
+					true
+				);
+			}
+		}).catch(function(err) {
+			self.showToast(
+				tr('Failed to delete log file: %s', 'Не удалось удалить файл лога: %s').format(err.message || err),
+				true
+			);
+		});
+	},
+
 	updateStatus: function() {
 		var self = this;
 
@@ -1513,9 +1552,6 @@ return view.extend({
 
 		this.btnStop.disabled =
 			!info.running;
-
-		this.commandArea.value =
-			info.formattedCommand || '';
 	},
 
 	applyInitialData: function(data) {
@@ -1542,14 +1578,6 @@ return view.extend({
 				p.configPath
 			);
 
-		this.commandSectionTitle.textContent =
-			tr(
-				'Current %s command line arguments',
-				'Параметры запуска %s'
-			).format(
-				p.binName
-			);
-
 		this.configArea.value =
 			configText;
 
@@ -1557,6 +1585,7 @@ return view.extend({
 			configText;
 
 		this.applyStatus(status);
+		this.loadLog();
 	},
 
 	render: function(data) {
@@ -1593,19 +1622,6 @@ return view.extend({
 				tr(
 					'Current config',
 					'Текущий конфиг'
-				)
-			);
-
-		this.commandSectionTitle =
-			E(
-				'div',
-				{
-					'class':
-						'z2-section-title'
-				},
-				tr(
-					'Active command',
-					'Активная команда'
 				)
 			);
 
@@ -1806,17 +1822,75 @@ return view.extend({
 			)
 		);
 
-		this.commandArea = E(
+		// Секция логов
+		this.logArea = E(
 			'textarea',
 			{
 				'class':
-					'cbi-input-textarea ' +
-					'z2-textarea z2-compact',
+					'cbi-input-textarea z2-textarea',
 				'readonly':
 					'readonly',
 				'wrap':
 					'off'
 			}
+		);
+
+		this.btnRefreshLog = E(
+			'button',
+			{
+				'type':
+					'button',
+				'class':
+					'btn cbi-button-action',
+				'click':
+					ui.createHandlerFn(
+						this,
+						function(ev) {
+							if (ev) {
+								ev.preventDefault();
+								ev.stopPropagation();
+								if (ev.currentTarget && typeof ev.currentTarget.blur === 'function') {
+									ev.currentTarget.blur();
+								}
+							}
+							return self.loadLog().then(function() {
+								self.showToast(tr('Log updated.', 'Лог обновлён.'));
+							});
+						}
+					)
+			},
+			tr(
+				'Refresh',
+				'Обновить'
+			)
+		);
+
+		this.btnDeleteLog = E(
+			'button',
+			{
+				'type':
+					'button',
+				'class':
+					'btn cbi-button-negative',
+				'click':
+					ui.createHandlerFn(
+						this,
+						function(ev) {
+							if (ev) {
+								ev.preventDefault();
+								ev.stopPropagation();
+								if (ev.currentTarget && typeof ev.currentTarget.blur === 'function') {
+									ev.currentTarget.blur();
+								}
+							}
+							return self.deleteLog();
+						}
+					)
+			},
+			tr(
+				'Delete log',
+				'Удалить лог'
+			)
 		);
 
 		this.btnEnable = E(
@@ -2222,7 +2296,17 @@ return view.extend({
 									'z2-section-header'
 							},
 							[
-								this.commandSectionTitle,
+								E(
+									'div',
+									{
+										'class':
+											'z2-section-title'
+									},
+									tr(
+										'Service Log (/tmp/zapret.log)',
+										'Лог работы (/tmp/zapret.log)'
+									)
+								),
 
 								E(
 									'div',
@@ -2231,39 +2315,8 @@ return view.extend({
 											'z2-section-tools'
 									},
 									[
-										E(
-											'button',
-											{
-												'type':
-													'button',
-												'class':
-													'btn',
-												'click':
-													ui.createHandlerFn(
-														this,
-														function(ev) {
-															if (ev) {
-																ev.preventDefault();
-																ev.stopPropagation();
-																if (ev.currentTarget && typeof ev.currentTarget.blur === 'function') {
-																	ev.currentTarget.blur();
-																}
-															}
-															self.copyText(
-																self.commandArea.value,
-																tr(
-																	'command line',
-																	'командная строка'
-																)
-															);
-														}
-													)
-											},
-											tr(
-												'Copy',
-												'Копировать'
-											)
-										)
+										this.btnRefreshLog,
+										this.btnDeleteLog
 									]
 								)
 							]
@@ -2273,10 +2326,22 @@ return view.extend({
 							'div',
 							{
 								'class':
+									'z2-log-info'
+							},
+							tr(
+								'To enable logging, add "--debug=@/tmp/zapret.log" to the beginning of NFQWS/2_OPT.',
+								'Для включения логирования добавьте "--debug=@/tmp/zapret.log" в начало NFQWS/2_OPT.'
+							)
+						),
+
+						E(
+							'div',
+							{
+								'class':
 									'cbi-section-node'
 							},
 							[
-								this.commandArea
+								this.logArea
 							]
 						)
 					]
