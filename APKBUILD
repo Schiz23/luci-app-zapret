@@ -1,5 +1,5 @@
 pkgname=luci-app-zapret
-pkgver=0.0.2
+pkgver=0.0.3
 pkgrel=1
 pkgdesc="Simple LuCI menu for zapret/zapret2"
 url="https://github.com/Schiz23/luci-app-zapret"
