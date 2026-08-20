@@ -7,11 +7,7 @@
       "path": "zapret/status"
     },
     "depends": {
-      "acl": [ "luci-app-zapret" ],
-      "fs": {
-        "/etc/init.d/zapret2": "executable",
-        "/opt/zapret2/config": "file"
-      }
+      "acl": [ "luci-app-zapret" ]
     }
   }
 }
