@@ -105,7 +105,7 @@ function formatVersion(res) {
 		return '';
 
 	var match = text.match(
-		/\bv?\d+\.\d+\.\d+(?:-[0-9A-Za-z._+-]+)?\b/
+		/\bv?\d+(?:\.\d+)+\b(?:-[0-9A-Za-z._+-]+)?\b/
 	);
 
 	return match ? match[0] : '';
